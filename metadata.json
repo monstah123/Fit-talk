@@ -1,0 +1,7 @@
+{
+  "name": "FitTalk: AI Personal Trainer",
+  "description": "A real-time voice-activated fitness agent that helps you schedule gym appointments and track your training sessions using the Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
