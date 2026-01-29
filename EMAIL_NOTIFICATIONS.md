@@ -40,8 +40,8 @@ MONSTAH PRO now automatically sends email notifications to `monstahgymwear@gmail
 
 Located in `.env.local`:
 ```bash
-VITE_API_KEY=AIzaSyBG8UN2IAKw5805IutqHND2W3dCW7Fp8jg
-VITE_RESEND_API_KEY=re_bAZbqjh2_H2XFFh8AsdUjbKHKDwn7GdiD
+VITE_API_KEY=YOUR_GOOGLE_API_KEY_HERE
+VITE_RESEND_API_KEY=YOUR_RESEND_API_KEY_HERE
 ```
 
 ⚠️ **Security Note:** Never commit `.env.local` to git! It's already in `.gitignore`.
