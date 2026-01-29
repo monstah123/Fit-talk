@@ -1,8 +1,22 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
-import { SYSTEM_INSTRUCTION, TOOLS } from './constants';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { SYSTEM_INSTRUCTION, TOOLS, MY_AVAILABLE_SLOTS } from './constants';
 import { Appointment } from './types';
+import { sendBookingNotification } from './emailService';
+
+interface ImportMetaEnv {
+  readonly VITE_API_KEY: string;
+  readonly VITE_RESEND_API_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+interface AudioBlob {
+  data: string;
+  mimeType: string;
+}
 
 // Audio Helpers
 function encode(bytes: Uint8Array) {
@@ -42,7 +56,7 @@ async function decodeAudioData(
   return buffer;
 }
 
-function createBlob(data: Float32Array): Blob {
+function createBlob(data: Float32Array): AudioBlob {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
@@ -88,7 +102,7 @@ const App: React.FC = () => {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(180); // 3 minutes
   const [showShopHighlight, setShowShopHighlight] = useState(false);
-  
+
   const isRecordingRef = useRef(false);
   const sessionRef = useRef<any>(null);
   const nextStartTimeRef = useRef(0);
@@ -159,7 +173,7 @@ const App: React.FC = () => {
       await contexts.input.resume();
       await contexts.output.resume();
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY || '' });
       const randomGreeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
       const sessionPromise = ai.live.connect({
@@ -179,23 +193,23 @@ const App: React.FC = () => {
             isRecordingRef.current = true;
             setIsRecording(true);
             setStatus('MONSTAH LIVE');
-            
+
             const source = contexts.input.createMediaStreamSource(stream);
             const scriptProcessor = contexts.input.createScriptProcessor(4096, 1, 1);
-            
+
             scriptProcessor.onaudioprocess = (e) => {
               if (isRecordingRef.current) {
                 const pcm = createBlob(e.inputBuffer.getChannelData(0));
                 sessionPromise.then(s => s.sendRealtimeInput({ media: pcm }));
               }
             };
-            
+
             source.connect(scriptProcessor);
             scriptProcessor.connect(contexts.input.destination);
           },
           onmessage: async (msg: LiveServerMessage) => {
             setIsThinking(false);
-            
+
             if (msg.serverContent?.inputTranscription) {
               updateTranscript(msg.serverContent.inputTranscription.text, 'User');
             }
@@ -222,7 +236,7 @@ const App: React.FC = () => {
             }
 
             if (msg.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => { try { s.stop(); } catch(e){} });
+              sourcesRef.current.forEach(s => { try { s.stop(); } catch (e) { } });
               sourcesRef.current.clear();
               nextStartTimeRef.current = 0;
               setIsSpeaking(false);
@@ -231,6 +245,40 @@ const App: React.FC = () => {
             if (msg.toolCall) {
               for (const fc of msg.toolCall.functionCalls) {
                 if (fc.name === 'create_appointment') {
+                  // === VALIDATE TIME IS IN YOUR SCHEDULE ===
+                  const requestedTime = fc.args.startTime;
+                  const isValidTime = MY_AVAILABLE_SLOTS.includes(requestedTime);
+
+                  if (!isValidTime) {
+                    // REJECT - Time not in your schedule
+                    console.warn('MONSTAH: Time slot rejected - not in schedule:', requestedTime);
+
+                    // Send error back to AI
+                    if (sessionRef.current) {
+                      sessionRef.current.sendToolResponse({
+                        functionResponses: {
+                          id: fc.id,
+                          name: fc.name,
+                          response: {
+                            error: `SCHEDULE LOCKED. Available slots: ${MY_AVAILABLE_SLOTS.slice(0, 3)
+                              .map(t => new Date(t).toLocaleString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              }))
+                              .join(', ')}`
+                          }
+                        }
+                      });
+                    }
+                    return; // Stop here, don't create appointment
+                  }
+                  // === END VALIDATION BLOCK ===
+
+                  // If time IS valid, create the appointment
                   const payload = {
                     fc,
                     details: {
@@ -244,7 +292,7 @@ const App: React.FC = () => {
                     }
                   };
                   setPendingAppointment(payload);
-                  setStashedAppointment(null); 
+                  setStashedAppointment(null);
                 }
               }
             }
@@ -267,28 +315,37 @@ const App: React.FC = () => {
     }
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (!pendingAppointment) return;
     const { fc, details } = pendingAppointment;
-    
-    setAppointments(prev => [...prev, details].sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
-    
+
+    setAppointments(prev => [...prev, details].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
+
     if (sessionRef.current) {
       sessionRef.current.sendToolResponse({
         functionResponses: { id: fc.id, name: fc.name, response: { result: "MONSTAH packet deployed. Instruct the client to visit the Shop for gear and supplements now." } }
       });
     }
 
-    new Audio(CONFIRM_CHIME).play().catch(() => {});
+    // Send email notification to MONSTAH PRO
+    sendBookingNotification(details).then(result => {
+      if (result.success) {
+        console.log('✅ MONSTAH PRO notified via email');
+      } else {
+        console.error('⚠️ Email notification failed, but booking saved locally');
+      }
+    });
+
+    new Audio(CONFIRM_CHIME).play().catch(() => { });
     setShowShopHighlight(true);
     setTimeout(() => setShowShopHighlight(false), 10000);
-    
+
     const description = `Athlete: ${details.clientName}\nSync Source: MONSTAH FITTALK PRO\nTarget: muscle40@gmail.com\n\n60 session time\n\nTraining Type: ${details.type}\n\nINTENSE IS HOW WE TRAIN.`;
     const gcalDetails = encodeURIComponent(description);
     const startIso = new Date(details.startTime).toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const endIso = new Date(new Date(details.startTime).getTime() + 60*60000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const endIso = new Date(new Date(details.startTime).getTime() + 60 * 60000).toISOString().replace(/-|:|\.\d\d\d/g, "");
     const gcal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=MONSTAH:+${details.type}+Session&dates=${startIso}/${endIso}&details=${gcalDetails}&location=Iron+%26+Soul+Gym&add=muscle40@gmail.com`;
-    
+
     window.open(gcal, '_blank');
     setPendingAppointment(null);
     setStashedAppointment(null);
@@ -299,13 +356,13 @@ const App: React.FC = () => {
     if (item) {
       setRecentlyDeleted(item);
       setAppointments(prev => prev.filter(a => a.id !== id));
-      new Audio(PURGE_CHIME).play().catch(() => {});
+      new Audio(PURGE_CHIME).play().catch(() => { });
     }
   };
 
   const undoDelete = () => {
     if (recentlyDeleted) {
-      setAppointments(prev => [...prev, recentlyDeleted].sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
+      setAppointments(prev => [...prev, recentlyDeleted].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
       setRecentlyDeleted(null);
     }
   };
@@ -367,7 +424,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
             <div className="flex-grow sm:flex-grow-0 flex flex-col items-end">
               <span className="text-[8px] font-black uppercase text-slate-600 mb-1 tracking-widest">Voice Core</span>
-              <select 
+              <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
                 disabled={isRecording}
@@ -376,7 +433,8 @@ const App: React.FC = () => {
                 {VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
               </select>
             </div>
-            <button 
+
+            <button
               onClick={toggleSession}
               className={`px-6 sm:px-8 py-3 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all transform active:scale-95 whitespace-nowrap ${isRecording ? 'bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'bg-[#39ff14] text-black shadow-[0_0_20px_rgba(57,255,20,0.4)]'}`}
             >
@@ -395,7 +453,7 @@ const App: React.FC = () => {
               <div className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 flex items-center justify-center overflow-hidden mb-6 ${isSpeaking ? 'neon-border' : 'border-slate-900'}`}>
                 {isSpeaking ? (
                   <div className="flex items-end justify-center gap-1 h-10 sm:h-12">
-                    {[...Array(5)].map((_, i) => <div key={i} className="bar bar-active" style={{animationDelay: `${i*0.1}s`}}></div>)}
+                    {[...Array(5)].map((_, i) => <div key={i} className="bar bar-active" style={{ animationDelay: `${i * 0.1}s` }}></div>)}
                   </div>
                 ) : (
                   <div className="text-[9px] sm:text-[10px] font-black uppercase text-slate-700 tracking-tighter text-center px-2">
@@ -418,10 +476,10 @@ const App: React.FC = () => {
                   <h2 className="text-3xl sm:text-4xl font-black italic tracking-tighter uppercase leading-none">THE <span className="text-[#39ff14]">ROSTER</span></h2>
                   <span className="text-[8px] sm:text-[10px] font-black text-slate-600 uppercase tracking-widest">{appointments.length} DEPLOYED</span>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {stashedAppointment && !pendingAppointment && (
-                    <button 
+                    <button
                       onClick={restoreStashed}
                       className="flex items-center gap-2 bg-[#39ff14]/10 border border-[#39ff14]/30 px-4 py-2 rounded-full text-[#39ff14] text-[9px] font-black uppercase tracking-widest animate-pulse hover:bg-[#39ff14]/20 transition-all"
                     >
@@ -430,7 +488,7 @@ const App: React.FC = () => {
                     </button>
                   )}
                   {recentlyDeleted && (
-                    <button 
+                    <button
                       onClick={undoDelete}
                       className="flex items-center gap-2 bg-red-600/10 border border-red-600/30 px-4 py-2 rounded-full text-red-500 text-[9px] font-black uppercase tracking-widest animate-pulse hover:bg-red-600/20 transition-all"
                     >
@@ -439,24 +497,24 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
-              
+
               {appointments.length === 0 ? (
                 <div className="h-32 sm:h-48 flex flex-col items-center justify-center opacity-10">
-                  <svg className="w-10 h-10 sm:w-12 sm:h-12 mb-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19,4H18V2H16V4H8V2H6V4H5C3.89,4 3.01,4.9 3.01,6L3,20C3,21.1 3.89,22 5,22H19C20.1,22 21,21.1 21,20V6C21,4.9 20.1,4 19,4M19,20H5V10H19V20M9,14H7V12H9V14M13,14H11V12H13V14M17,14H15V12H17V14M9,18H7V16H9V18M13,18H11V16H13V18M17,18H15V16H17V18Z"/></svg>
+                  <svg className="w-10 h-10 sm:w-12 sm:h-12 mb-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19,4H18V2H16V4H8V2H6V4H5C3.89,4 3.01,4.9 3.01,6L3,20C3,21.1 3.89,22 5,22H19C20.1,22 21,21.1 21,20V6C21,4.9 20.1,4 19,4M19,20H5V10H19V20M9,14H7V12H9V14M13,14H11V12H13V14M17,14H15V12H17V14M9,18H7V16H9V18M13,18H11V16H13V18M17,18H15V16H17V18Z" /></svg>
                   <p className="font-black uppercase tracking-[0.4em] text-[8px] sm:text-[10px]">No Active Packets</p>
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
                   {appointments.map(a => (
                     <div key={a.id} className="bg-white/[0.02] border border-slate-900 p-5 sm:p-6 rounded-2xl group relative hover:border-[#39ff14]/30 transition-all border-l-4 border-l-[#39ff14]">
-                      <button 
+                      <button
                         onClick={() => deleteAppointment(a.id)}
                         className="absolute top-4 right-4 text-slate-700 hover:text-red-500 transition-colors"
                         title="Purge Packet"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
-                      
+
                       <div className="flex justify-between items-start mb-4 pr-6">
                         <span className="text-[8px] sm:text-[9px] font-black bg-[#39ff14]/10 text-[#39ff14] px-2 py-1 rounded uppercase tracking-widest">{a.type}</span>
                         <span className="text-[8px] sm:text-[9px] font-black text-slate-700 uppercase">60 MIN</span>
@@ -474,21 +532,21 @@ const App: React.FC = () => {
                 </div>
               )}
             </div>
-            
-            <a 
-              href={SHOP_URL} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+
+            <a
+              href={SHOP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className={`block group relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] bg-black border-2 border-slate-900 hover:border-[#39ff14]/50 transition-all shadow-2xl ${showShopHighlight ? 'highlight-shop' : ''}`}
             >
               <div className="aspect-[16/9] sm:aspect-[21/9] w-full flex items-center justify-center p-6 sm:p-8 relative">
-                <img 
-                  src={BANNER_IMAGE} 
-                  alt="MONSTAH GYM WEAR" 
+                <img
+                  src={BANNER_IMAGE}
+                  alt="MONSTAH GYM WEAR"
                   className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
                   onError={(e) => { (e.target as any).src = "https://placehold.co/1200x500/000000/39ff14?text=THE+ARMORY+MONSTAH"; }}
                 />
-                
+
                 <div className="absolute inset-0 flex items-end justify-center pb-8 sm:pb-12 bg-black/40 group-hover:bg-black/10 transition-colors">
                   <div className="bg-[#39ff14] text-black px-8 py-3 rounded-full font-black uppercase text-xs sm:text-sm tracking-[0.2em] shadow-[0_0_30px_rgba(57,255,20,0.6)] transform group-hover:scale-110 transition-transform flex items-center gap-3">
                     SHOP NOW
@@ -508,7 +566,7 @@ const App: React.FC = () => {
 
       {/* Deployment Modal */}
       {pendingAppointment && (
-        <div 
+        <div
           className="animate-fade-in"
           style={{
             position: 'fixed',
@@ -527,7 +585,7 @@ const App: React.FC = () => {
             WebkitOverflowScrolling: 'touch'
           }}
         >
-          <div 
+          <div
             className="animate-slide-up"
             style={{
               backgroundColor: '#0a0a0a',
@@ -546,7 +604,7 @@ const App: React.FC = () => {
               <h3 style={{ fontSize: '32px', fontWeight: '900', fontStyle: 'italic', textTransform: 'uppercase', marginBottom: '8px', color: '#fff' }}>PACKET READY</h3>
               <p style={{ fontSize: '10px', fontWeight: '900', color: '#39ff14', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Deploying to Cloud Relay</p>
             </div>
-            
+
             <div style={{ backgroundColor: '#050505', padding: '24px', borderRadius: '16px', border: '1px solid #1e293b', marginBottom: '32px', fontSize: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ color: '#64748b', fontSize: '9px', textTransform: 'uppercase' }}>Athlete:</span>
@@ -560,28 +618,28 @@ const App: React.FC = () => {
                 <span style={{ color: '#64748b', fontSize: '9px', textTransform: 'uppercase' }}>Phone:</span>
                 <span style={{ fontWeight: 'bold', textTransform: 'uppercase', color: '#fff', fontSize: '11px' }}>{pendingAppointment.details.phoneNumber}</span>
               </div>
-              
+
               <div style={{ height: '1px', backgroundColor: '#1e293b', width: '100%', marginBottom: '16px' }}></div>
               <p style={{ fontWeight: 'bold', textTransform: 'uppercase', color: '#fff', fontSize: '11px', letterSpacing: '0.1em', textAlign: 'center' }}>60 MIN SESSION</p>
               <div style={{ height: '1px', backgroundColor: '#1e293b', width: '100%', marginTop: '16px', marginBottom: '16px' }}></div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
                 <span style={{ color: '#64748b', fontSize: '9px', textTransform: 'uppercase' }}>Training Type:</span>
                 <span style={{ fontWeight: 'bold', textTransform: 'uppercase', color: '#fff' }}>{pendingAppointment.details.type}</span>
               </div>
-              
+
               <p style={{ color: '#39ff14', fontWeight: '900', textAlign: 'center', fontSize: '13px', letterSpacing: '0.2em', fontStyle: 'italic' }}>INTENSE IS HOW WE TRAIN.</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <button 
-                onClick={(e) => { e.stopPropagation(); stashAppointment(); }} 
+              <button
+                onClick={(e) => { e.stopPropagation(); stashAppointment(); }}
                 style={{ padding: '16px', borderRadius: '12px', border: '1px solid #1e293b', color: '#64748b', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', cursor: 'pointer', backgroundColor: 'transparent' }}
               >
                 Stash Packet
               </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); confirmBooking(); }} 
+              <button
+                onClick={(e) => { e.stopPropagation(); confirmBooking(); }}
                 style={{ padding: '16px', borderRadius: '12px', backgroundColor: '#39ff14', color: '#000', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', border: 'none', boxShadow: '0 0 20px rgba(57,255,20,0.4)' }}
               >
                 Deploy
