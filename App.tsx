@@ -143,6 +143,8 @@ const App: React.FC = () => {
     }
   }, [recentlyDeleted]);
 
+
+
   const updateTranscript = (text: string, speaker: 'User' | 'MONSTAH') => {
     const entry = `${speaker}: ${text}`;
     transcriptRef.current = [entry, ...transcriptRef.current].slice(0, 15);
@@ -173,20 +175,21 @@ const App: React.FC = () => {
       await contexts.input.resume();
       await contexts.output.resume();
 
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY || '' });
+      const apiKey = import.meta.env.VITE_API_KEY || '';
+      const ai = new GoogleGenAI({ apiKey });
       const randomGreeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
-          responseModalities: [Modality.AUDIO],
           systemInstruction: SYSTEM_INSTRUCTION + `\nFOR THIS SESSION, START WITH: "${randomGreeting} INTENSE IS HOW WE TRAIN."`,
           tools: [{ functionDeclarations: TOOLS }],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } }
+          generationConfig: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } }
+            },
           },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {}
         },
         callbacks: {
           onopen: () => {
@@ -200,7 +203,18 @@ const App: React.FC = () => {
             scriptProcessor.onaudioprocess = (e) => {
               if (isRecordingRef.current) {
                 const pcm = createBlob(e.inputBuffer.getChannelData(0));
-                sessionPromise.then(s => s.sendRealtimeInput({ media: pcm }));
+                sessionPromise.then(s => {
+                  try {
+                    s.sendRealtimeInput({ media: pcm });
+                  } catch (e) {
+                    // Ignore immediate send errors, handle in onclose
+                  }
+                }).catch(e => {
+                  console.warn("⚠️ Connection dropped, stopping audio.");
+                  isRecordingRef.current = false;
+                  setIsRecording(false);
+                  setStatus('CONNECTION LOST');
+                });
               }
             };
 
@@ -309,9 +323,11 @@ const App: React.FC = () => {
         }
       });
       sessionRef.current = await sessionPromise;
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setStatus('MIC REJECTED');
+      setStatus('CONNECTION FAILED');
+      // Show the verification error to the user
+      alert(`Connection Error: ${err.message || JSON.stringify(err)}`);
     }
   };
 
