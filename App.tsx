@@ -193,7 +193,7 @@ const App: React.FC = () => {
 
 
       const athleteContext = registeredAthlete
-        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. Your FIRST words MUST be: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
+        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. TRIGGER: AS SOON AS THE CONNECTION OPENS, YOU MUST PROACTIVELY GREET THEM WITH: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
         : `\nFOR THIS SESSION, START BY SAYING: "${randomGreeting} INTENSE IS HOW WE TRAIN."`;
 
       const sessionPromise = ai.live.connect({
