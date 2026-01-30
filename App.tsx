@@ -193,7 +193,7 @@ const App: React.FC = () => {
 
 
       const athleteContext = registeredAthlete
-        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. TRIGGER: AS SOON AS THE CONNECTION OPENS, YOU MUST PROACTIVELY GREET THEM WITH: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
+        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. TRIGGER: As soon as you see the text "START_SESSION", you MUST immediately respond with: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
         : `\nFOR THIS SESSION, START BY SAYING: "${randomGreeting} INTENSE IS HOW WE TRAIN."`;
 
       const sessionPromise = ai.live.connect({
@@ -213,6 +213,12 @@ const App: React.FC = () => {
             isRecordingRef.current = true;
             setIsRecording(true);
             setStatus('MONSTAH LIVE');
+
+            // Force Gemini to speak first by sending a trigger signal
+            sessionPromise.then(s => {
+              // @ts-ignore - Sending a text part to trigger the first turn
+              s.sendRealtimeInput([{ text: "START_SESSION" }]);
+            });
 
             const source = contexts.input.createMediaStreamSource(stream);
             const scriptProcessor = contexts.input.createScriptProcessor(4096, 1, 1);
