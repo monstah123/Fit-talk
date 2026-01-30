@@ -179,6 +179,9 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey });
       const randomGreeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
+
+
+
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
@@ -427,7 +430,7 @@ const App: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-black tracking-tighter italic uppercase leading-none">
                 <span className="text-[#39ff14] neon-text">MONSTAH</span> PRO
               </h1>
-              <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.3em] text-slate-500">Titan OS v4.2</span>
+              <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">The AI Personal Trainer Assistant</span>
             </div>
           </div>
 
