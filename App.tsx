@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { SYSTEM_INSTRUCTION, TOOLS, MY_AVAILABLE_SLOTS } from './constants';
+import { SYSTEM_INSTRUCTION, TOOLS, MY_AVAILABLE_SLOTS, LANGUAGES, getLanguageInstruction } from './constants';
 import { Appointment } from './types';
 import { sendBookingNotification } from './emailService';
 
@@ -98,7 +98,8 @@ const App: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [status, setStatus] = useState('MONSTAH STANDBY');
-  const [selectedVoice, setSelectedVoice] = useState('Puck');
+  const [selectedVoice, setSelectedVoice] = useState(VOICES[0].id);
+  const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGES[0].code);
   const [transcript, setTranscript] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(180); // 3 minutes
   const [showShopHighlight, setShowShopHighlight] = useState(false);
@@ -106,7 +107,7 @@ const App: React.FC = () => {
   const isRecordingRef = useRef(false);
   const sessionRef = useRef<any>(null);
   const nextStartTimeRef = useRef(0);
-  const audioContextRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
+  const audioContextRef = useRef<{ input: AudioContext; output: AudioContext; gain: GainNode } | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const transcriptRef = useRef<string[]>([]);
   const currentStreamRef = useRef<MediaStream | null>(null);
@@ -168,10 +169,18 @@ const App: React.FC = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       currentStreamRef.current = stream;
 
-      const contexts = audioContextRef.current || (audioContextRef.current = {
-        input: new AudioContext({ sampleRate: 16000 }),
-        output: new AudioContext({ sampleRate: 24000 })
-      });
+      const contexts = audioContextRef.current || (() => {
+        const output = new AudioContext({ sampleRate: 24000 });
+        const gain = output.createGain();
+        gain.gain.value = 2.5; // BOOST VOLUME 250% FOR MOBILE
+        gain.connect(output.destination);
+        return (audioContextRef.current = {
+          input: new AudioContext({ sampleRate: 16000 }),
+          output,
+          gain
+        });
+      })();
+
       await contexts.input.resume();
       await contexts.output.resume();
 
@@ -185,7 +194,7 @@ const App: React.FC = () => {
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION + `\nFOR THIS SESSION, START WITH: "${randomGreeting} INTENSE IS HOW WE TRAIN."`,
+          systemInstruction: SYSTEM_INSTRUCTION + getLanguageInstruction(selectedLanguage) + `\nFOR THIS SESSION, START WITH: "${randomGreeting} INTENSE IS HOW WE TRAIN."`,
           tools: [{ functionDeclarations: TOOLS }],
           generationConfig: {
             responseModalities: [Modality.AUDIO],
@@ -237,12 +246,12 @@ const App: React.FC = () => {
             const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             if (audioData) {
               setIsSpeaking(true);
-              const { output } = audioContextRef.current!;
+              const { output, gain } = audioContextRef.current!;
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, output.currentTime);
               const buffer = await decodeAudioData(decode(audioData), output, 24000, 1);
               const source = output.createBufferSource();
               source.buffer = buffer;
-              source.connect(output.destination);
+              source.connect(gain);
               source.onended = () => {
                 sourcesRef.current.delete(source);
                 if (sourcesRef.current.size === 0) setIsSpeaking(false);
@@ -442,6 +451,15 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
             <div className="flex-grow sm:flex-grow-0 flex flex-col items-end">
+              <span className="text-[8px] font-black uppercase text-slate-600 mb-1 tracking-widest">Language</span>
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                disabled={isRecording}
+                className="w-full sm:w-auto bg-black border border-slate-800 text-[10px] font-black uppercase px-3 py-2 rounded outline-none focus:border-[#39ff14] transition-all disabled:opacity-30 mb-2"
+              >
+                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+              </select>
               <span className="text-[8px] font-black uppercase text-slate-600 mb-1 tracking-widest">Voice Core</span>
               <select
                 value={selectedVoice}

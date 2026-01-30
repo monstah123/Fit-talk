@@ -1,5 +1,23 @@
 import { FunctionDeclaration, Type } from '@google/genai';
 
+export const LANGUAGES = [
+  { code: 'en', label: '🇺🇸 English' },
+  { code: 'es', label: '🇪🇸 Spanish' },
+  { code: 'fr', label: '🇫🇷 French' },
+  { code: 'nl', label: '🇳🇱 Dutch' },
+];
+
+export const getLanguageInstruction = (langCode: string) => {
+  const langMap: Record<string, string> = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'nl': 'Dutch'
+  };
+  return `\n\nLANGUAGE PROTOCOL: YOU MUST SPEAK AND RESPOND ONLY IN ${langMap[langCode] || 'English'}. Translate your standard phrases (like "INTENSE IS HOW WE TRAIN") into ${langMap[langCode] || 'English'} naturally.`;
+};
+
+
 // ====== YOUR CONTROLLED SCHEDULE ======
 // EDIT THESE DATES/TIMES TO YOUR AVAILABILITY
 const MY_AVAILABLE_SLOTS = [
@@ -10,30 +28,30 @@ const MY_AVAILABLE_SLOTS = [
   "2026-01-29T14:00:00",
   "2026-01-29T16:00:00",
   "2026-01-29T17:00:00",
-  
+
   // Tuesday
   "2026-01-30T09:00:00",
   "2026-01-30T11:00:00",
   "2026-01-30T14:00:00",
   "2026-01-30T16:00:00",
-  
+
   // Wednesday
   "2026-01-31T09:00:00",
   "2026-01-31T11:00:00",
   "2026-01-31T14:00:00",
-  
+
   // Thursday
   "2026-02-01T09:00:00",
   "2026-02-01T14:00:00",
   "2026-02-01T16:00:00",
-  
+
   // Friday
   "2026-02-02T09:00:00",
   "2026-02-02T11:00:00",
 ];
 
 // Convert to readable format for the AI
-const availableSlotsFormatted = MY_AVAILABLE_SLOTS.map(slot => 
+const availableSlotsFormatted = MY_AVAILABLE_SLOTS.map(slot =>
   new Date(slot).toLocaleString('en-US', {
     weekday: 'long',
     month: 'short',
@@ -93,29 +111,29 @@ export const TOOLS: FunctionDeclaration[] = [
     parameters: {
       type: Type.OBJECT,
       properties: {
-        clientName: { 
+        clientName: {
           type: Type.STRING,
           description: 'Full name of the athlete'
         },
-        email: { 
+        email: {
           type: Type.STRING,
           description: 'Email for calendar invite and confirmation'
         },
-        phoneNumber: { 
+        phoneNumber: {
           type: Type.STRING,
           description: 'Phone for SMS reminders'
         },
-        type: { 
-          type: Type.STRING, 
+        type: {
+          type: Type.STRING,
           enum: ['Weightlifting', 'Cardio', 'Yoga', 'General', 'Consultation', 'Bodybuilding'],
           description: 'Training package type'
         },
-        startTime: { 
-          type: Type.STRING, 
+        startTime: {
+          type: Type.STRING,
           description: `MUST BE EXACTLY ONE OF THESE PRE-APPROVED SLOTS: ${MY_AVAILABLE_SLOTS.slice(0, 5).join(', ')}...`
         },
-        durationMinutes: { 
-          type: Type.NUMBER, 
+        durationMinutes: {
+          type: Type.NUMBER,
           description: 'Always 60 minutes for MONSTAH sessions'
         }
       },
