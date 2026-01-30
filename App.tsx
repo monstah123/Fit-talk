@@ -103,6 +103,7 @@ const App: React.FC = () => {
   const [transcript, setTranscript] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(180); // 3 minutes
   const [showShopHighlight, setShowShopHighlight] = useState(false);
+  const [registeredAthlete, setRegisteredAthlete] = useState<string | null>(localStorage.getItem('monstah_athlete_name'));
 
   const isRecordingRef = useRef(false);
   const sessionRef = useRef<any>(null);
@@ -191,10 +192,14 @@ const App: React.FC = () => {
 
 
 
+      const athleteContext = registeredAthlete
+        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. Your FIRST words MUST be: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
+        : `\nFOR THIS SESSION, START BY SAYING: "${randomGreeting} INTENSE IS HOW WE TRAIN."`;
+
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION + getLanguageInstruction(selectedLanguage) + `\nFOR THIS SESSION, START WITH: "${randomGreeting} INTENSE IS HOW WE TRAIN."`,
+          systemInstruction: SYSTEM_INSTRUCTION + getLanguageInstruction(selectedLanguage) + athleteContext,
           tools: [{ functionDeclarations: TOOLS }],
           generationConfig: {
             responseModalities: [Modality.AUDIO],
@@ -268,11 +273,11 @@ const App: React.FC = () => {
               setIsSpeaking(false);
             }
 
-            if (msg.toolCall) {
+            if (msg.toolCall?.functionCalls) {
               for (const fc of msg.toolCall.functionCalls) {
-                if (fc.name === 'create_appointment') {
+                if (fc.name === 'create_appointment' && fc.args) {
                   // === VALIDATE TIME IS IN YOUR SCHEDULE ===
-                  const requestedTime = fc.args.startTime;
+                  const requestedTime = fc.args.startTime as string;
                   const isValidTime = MY_AVAILABLE_SLOTS.includes(requestedTime);
 
                   if (!isValidTime) {
@@ -308,12 +313,12 @@ const App: React.FC = () => {
                   const payload = {
                     fc,
                     details: {
-                      id: Math.random().toString(36).substr(2, 9),
-                      clientName: fc.args.clientName,
-                      email: fc.args.email,
-                      phoneNumber: fc.args.phoneNumber,
-                      type: fc.args.type || 'General',
-                      startTime: fc.args.startTime,
+                      id: Math.random().toString(36).substring(2, 9),
+                      clientName: fc.args.clientName as string,
+                      email: fc.args.email as string,
+                      phoneNumber: fc.args.phoneNumber as string,
+                      type: (fc.args.type as string) || 'General',
+                      startTime: fc.args.startTime as string,
                       durationMinutes: 60
                     }
                   };
@@ -375,6 +380,11 @@ const App: React.FC = () => {
     const gcal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=MONSTAH:+${details.type}+Session&dates=${startIso}/${endIso}&details=${gcalDetails}&location=Iron+%26+Soul+Gym&add=muscle40@gmail.com`;
 
     window.open(gcal, '_blank');
+
+    // Memory: Save athlete name for recognition
+    localStorage.setItem('monstah_athlete_name', details.clientName);
+    setRegisteredAthlete(details.clientName);
+
     setPendingAppointment(null);
     setStashedAppointment(null);
   };
