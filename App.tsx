@@ -193,7 +193,7 @@ const App: React.FC = () => {
 
 
       const athleteContext = registeredAthlete
-        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. TRIGGER: As soon as you see the text "START_SESSION", you MUST immediately respond with: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
+        ? `\nRECOGNITION PROTOCOL: You are speaking with ${registeredAthlete.toUpperCase()}. If you hear silence or a start signal at the beginning, you MUST immediately break the silence with: "WELCOME BACK, ${registeredAthlete.toUpperCase()}. READY TO BEAT YOUR LAST SESSION? INTENSE IS HOW WE TRAIN."`
         : `\nFOR THIS SESSION, START BY SAYING: "${randomGreeting} INTENSE IS HOW WE TRAIN."`;
 
       const sessionPromise = ai.live.connect({
@@ -214,10 +214,10 @@ const App: React.FC = () => {
             setIsRecording(true);
             setStatus('MONSTAH LIVE');
 
-            // Force Gemini to speak first by sending a trigger signal
+            // "Nudge" the AI to speak first by sending a tiny bit of silence
             sessionPromise.then(s => {
-              // @ts-ignore - Sending a text part to trigger the first turn
-              s.sendRealtimeInput([{ text: "START_SESSION" }]);
+              const nudge = createBlob(new Float32Array(1600)); // 0.1s of silence
+              s.sendRealtimeInput({ media: nudge });
             });
 
             const source = contexts.input.createMediaStreamSource(stream);
