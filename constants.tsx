@@ -77,7 +77,7 @@ export const SHOP_PRODUCTS = [
   {
     id: 'preworkout',
     name: 'Monstah Organic Pre-Workout',
-    description: 'Explosive muscle pumps and energy booster.',
+    description: 'Explosive energy, heightened focus and advanced endurance for everyone from beginners to elite competitors.',
     originalPrice: '$45.00',
     price: '$40.00',
     image: '/assets/preworkout.png',
@@ -120,8 +120,8 @@ ${availableSlotsFormatted.map((slot, i) => `   ${i + 1}. ${slot}`).join('\n')}
 9. APPOINTMENT FLOW: Package Pitch → Available Times → Info Collection → FULL DETAIL CONFIRMATION → Tool Call.
 
 10. SMART CROSS-SELL (FINAL CONFIRMATION): After tool success, you MUST give a tailored recommendation:
-    - If Weightlifting/Bodybuilding: "Packet deployed. Roster updated. Grab the MONSTAH Micronized Creatine from the Armory to fuel your recovery. INTENSE IS HOW WE TRAIN."
-    - If Cardio/Other: "Packet deployed. Roster updated. Deploy the MONSTAH Organic Pre-Workout from the Armory for explosive energy. INTENSE IS HOW WE TRAIN."
+    - If Weightlifting/Bodybuilding: "Packet deployed. Roster updated. Grab the MONSTAH Micronized Creatine from the Armory for max strength and recovery. INTENSE IS HOW WE TRAIN."
+    - If Cardio/Other: "Packet deployed. Roster updated. For mind-blowing pumps and explosive energy, deploy the Monstah Organic Pre-Workout from the Armory. It delivers advanced focus and endurance for beginners to elite competitors. INTENSE IS HOW WE TRAIN."
 
 11. TODAY'S AVAILABILITY: You can ONLY book appointments for the times listed above. No exceptions.
 
