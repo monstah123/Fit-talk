@@ -62,6 +62,30 @@ const availableSlotsFormatted = MY_AVAILABLE_SLOTS.map(slot =>
   })
 );
 
+// ====== THE ARMORY (SHOP) DATA ======
+export const SHOP_PRODUCTS = [
+  {
+    id: 'creatine',
+    name: 'Monstah Micronized Creatine',
+    description: '60 Servings, 300 Grams. For max recovery and strength.',
+    originalPrice: '$40.00',
+    price: '$35.00',
+    image: '/assets/creatine.png',
+    link: 'https://monstahgymwear.com/product/monstah-creatine-monohydrate/',
+    recommendFor: ['Weightlifting', 'Bodybuilding', 'Weight training']
+  },
+  {
+    id: 'preworkout',
+    name: 'Monstah Organic Pre-Workout',
+    description: 'Explosive muscle pumps and energy booster.',
+    originalPrice: '$45.00',
+    price: '$40.00',
+    image: '/assets/preworkout.png',
+    link: 'https://monstahgymwear.com/product/improve-your-endurance-and-strength-monstah-organic-pre-workout-must-haves/',
+    recommendFor: ['Cardio', 'General', 'Yoga', 'Consultation']
+  }
+];
+
 export const SYSTEM_INSTRUCTION = `
 You are MONSTAH PRO, an elite, high-performance AI coach at Iron & Soul Gym. You are disciplined, focused, and professional.
 
@@ -95,7 +119,9 @@ ${availableSlotsFormatted.map((slot, i) => `   ${i + 1}. ${slot}`).join('\n')}
 
 9. APPOINTMENT FLOW: Package Pitch → Available Times → Info Collection → FULL DETAIL CONFIRMATION → Tool Call.
 
-10. FINAL CONFIRMATION & CROSS-SELL: After tool success, you MUST say: "Packet deployed. Roster updated. Click the Shop Now button for MONSTAH gear and preworkout or creatine to fire you up for training. INTENSE IS HOW WE TRAIN."
+10. SMART CROSS-SELL (FINAL CONFIRMATION): After tool success, you MUST give a tailored recommendation:
+    - If Weightlifting/Bodybuilding: "Packet deployed. Roster updated. Grab the MONSTAH Micronized Creatine from the Armory to fuel your recovery. INTENSE IS HOW WE TRAIN."
+    - If Cardio/Other: "Packet deployed. Roster updated. Deploy the MONSTAH Organic Pre-Workout from the Armory for explosive energy. INTENSE IS HOW WE TRAIN."
 
 11. TODAY'S AVAILABILITY: You can ONLY book appointments for the times listed above. No exceptions.
 
@@ -125,7 +151,7 @@ export const TOOLS: FunctionDeclaration[] = [
         },
         type: {
           type: Type.STRING,
-          enum: ['Weightlifting', 'Cardio', 'Yoga', 'General', 'Consultation', 'Bodybuilding'],
+          enum: ['Weightlifting', 'Cardio', 'Yoga', 'General', 'Consultation', 'Bodybuilding', 'Weight training'],
           description: 'Training package type'
         },
         startTime: {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { SYSTEM_INSTRUCTION, TOOLS, MY_AVAILABLE_SLOTS, LANGUAGES, getLanguageInstruction } from './constants';
+import { SYSTEM_INSTRUCTION, TOOLS, MY_AVAILABLE_SLOTS, LANGUAGES, getLanguageInstruction, SHOP_PRODUCTS } from './constants';
 import { Appointment } from './types';
 import { sendBookingNotification } from './emailService';
 
@@ -586,33 +586,70 @@ const App: React.FC = () => {
               )}
             </div>
 
-            <a
-              href={SHOP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`block group relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] bg-black border-2 border-slate-900 hover:border-[#39ff14]/50 transition-all shadow-2xl ${showShopHighlight ? 'highlight-shop' : ''}`}
-            >
-              <div className="aspect-[16/9] sm:aspect-[21/9] w-full flex items-center justify-center p-6 sm:p-8 relative">
+            {/* THE ARMORY SECTION */}
+            <div className="space-y-6">
+              <div className="relative overflow-hidden rounded-[2rem] border-2 border-slate-900 group">
                 <img
-                  src={BANNER_IMAGE}
-                  alt="MONSTAH GYM WEAR"
-                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
-                  onError={(e) => { (e.target as any).src = "https://placehold.co/1200x500/000000/39ff14?text=THE+ARMORY+MONSTAH"; }}
+                  src="/assets/armory_banner.png"
+                  alt="THE ARMORY"
+                  className="w-full h-auto object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
                 />
-
-                <div className="absolute inset-0 flex items-end justify-center pb-8 sm:pb-12 bg-black/40 group-hover:bg-black/10 transition-colors">
-                  <div className="bg-[#39ff14] text-black px-8 py-3 rounded-full font-black uppercase text-xs sm:text-sm tracking-[0.2em] shadow-[0_0_30px_rgba(57,255,20,0.6)] transform group-hover:scale-110 transition-transform flex items-center gap-3">
-                    SHOP NOW
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-4 left-6 sm:bottom-6 sm:left-10 text-left pointer-events-none">
-                  <h3 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-white uppercase leading-none mb-1 shadow-black">THE ARMORY</h3>
-                  <p className="text-[8px] sm:text-[10px] font-black text-[#39ff14] uppercase tracking-[0.4em]">MONSTAH GYM WEAR</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-8">
+                  <h3 className="text-3xl sm:text-5xl font-black italic tracking-tighter text-white uppercase leading-none">THE ARMORY</h3>
+                  <p className="text-[10px] sm:text-xs font-black text-[#39ff14] uppercase tracking-[0.4em]">ELITE FUEL DEPOT</p>
                 </div>
               </div>
-            </a>
+
+              <div className="grid sm:grid-cols-2 gap-6">
+                {SHOP_PRODUCTS.map(product => {
+                  const isRecommended = pendingAppointment?.details?.type && product.recommendFor.some(t =>
+                    pendingAppointment.details.type.toLowerCase().includes(t.toLowerCase())
+                  );
+
+                  return (
+                    <a
+                      key={product.id}
+                      href={product.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`glass-bg p-6 rounded-[2rem] border-2 transition-all duration-500 flex flex-col group relative ${isRecommended || showShopHighlight ? 'neon-border scale-[1.02]' : 'border-slate-900 hover:border-slate-700'}`}
+                    >
+                      {isRecommended && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#39ff14] text-black text-[8px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-[0_0_15px_rgba(57,255,20,0.5)] z-10 animate-bounce">
+                          Recommended for your session
+                        </div>
+                      )}
+
+                      <div className="h-48 mb-6 flex items-center justify-center relative overflow-hidden rounded-2xl bg-black/40">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="h-full object-contain group-hover:scale-110 transition-transform duration-700 p-4"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h4 className="text-xl font-black uppercase tracking-tight italic leading-tight text-white group-hover:text-[#39ff14] transition-colors">{product.name}</h4>
+                          <div className="text-right">
+                            <span className="block text-[10px] text-slate-500 line-through font-bold">{product.originalPrice}</span>
+                            <span className="block text-lg font-black text-[#39ff14] leading-none">{product.price}</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase tracking-wide">
+                          {product.description}
+                        </p>
+                        <div className="pt-4 mt-auto">
+                          <div className="w-full bg-[#39ff14]/10 border border-[#39ff14]/30 py-3 rounded-xl text-[#39ff14] text-[10px] font-black uppercase text-center tracking-[0.2em] group-hover:bg-[#39ff14] group-hover:text-black transition-all">
+                            Equip Gear
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </main>
       </div>
