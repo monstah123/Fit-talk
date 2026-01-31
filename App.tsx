@@ -102,7 +102,7 @@ const App: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGES[0].code);
   const [transcript, setTranscript] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(180); // 3 minutes
-  const [showShopHighlight, setShowShopHighlight] = useState(false);
+  const [recommendedProductId, setRecommendedProductId] = useState<string | null>(null);
   const [registeredAthlete, setRegisteredAthlete] = useState<string | null>(localStorage.getItem('monstah_athlete_name'));
 
   const isRecordingRef = useRef(false);
@@ -152,6 +152,14 @@ const App: React.FC = () => {
     transcriptRef.current = [entry, ...transcriptRef.current].slice(0, 15);
     setTranscript([...transcriptRef.current]);
   };
+
+  useEffect(() => {
+    if (pendingAppointment?.details?.type) {
+      const type = pendingAppointment.details.type.toLowerCase();
+      const product = SHOP_PRODUCTS.find(p => p.recommendFor.some(r => type.includes(r.toLowerCase())));
+      if (product) setRecommendedProductId(product.id);
+    }
+  }, [pendingAppointment]);
 
   const toggleSession = async () => {
     if (isRecording) {
@@ -376,8 +384,7 @@ const App: React.FC = () => {
     });
 
     new Audio(CONFIRM_CHIME).play().catch(() => { });
-    setShowShopHighlight(true);
-    setTimeout(() => setShowShopHighlight(false), 10000);
+    setTimeout(() => setRecommendedProductId(null), 10000);
 
     const description = `Athlete: ${details.clientName}\nSync Source: MONSTAH FITTALK PRO\nTarget: muscle40@gmail.com\n\n60 session time\n\nTraining Type: ${details.type}\n\nINTENSE IS HOW WE TRAIN.`;
     const gcalDetails = encodeURIComponent(description);
@@ -602,9 +609,7 @@ const App: React.FC = () => {
 
               <div className="grid sm:grid-cols-2 gap-6">
                 {SHOP_PRODUCTS.map(product => {
-                  const isRecommended = pendingAppointment?.details?.type && product.recommendFor.some(t =>
-                    pendingAppointment.details.type.toLowerCase().includes(t.toLowerCase())
-                  );
+                  const isRecommended = recommendedProductId === product.id;
 
                   return (
                     <a
@@ -612,7 +617,7 @@ const App: React.FC = () => {
                       href={product.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`glass-bg p-6 rounded-[2rem] border-2 transition-all duration-500 flex flex-col group relative ${isRecommended || showShopHighlight ? 'neon-border scale-[1.02]' : 'border-slate-900 hover:border-slate-700'}`}
+                      className={`glass-bg p-6 rounded-[2rem] border-2 transition-all duration-500 flex flex-col group relative ${isRecommended ? 'neon-border scale-[1.02]' : 'border-slate-900 hover:border-slate-700'}`}
                     >
                       {isRecommended && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#39ff14] text-black text-[8px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-[0_0_15px_rgba(57,255,20,0.5)] z-10 animate-bounce">
