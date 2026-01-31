@@ -2,14 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #000;
-  color: #fff;
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
 }
 
-/* Test to see if CSS loads */
-.test-css-loaded {
-  border: 2px solid #39ff14 !important;
+@layer components {
+  .neon-text {
+    text-shadow: 0 0 10px rgba(57, 255, 20, 0.5), 0 0 20px rgba(57, 255, 20, 0.3);
+  }
+
+  .glass-bg {
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .neon-border {
+    border-color: rgba(57, 255, 20, 0.5);
+    box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
+  }
+}
+
+@keyframes bar-grow {
+
+  0%,
+  100% {
+    height: 4px;
+  }
+
+  50% {
+    height: 100%;
+  }
+}
+
+.bar {
+  width: 4px;
+  background-color: #39ff14;
+  border-radius: 2px;
+}
+
+.bar-active {
+  animation: bar-grow 0.6s ease-in-out infinite;
+}
+
+.highlight-shop {
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 15px rgba(57, 255, 20, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(57, 255, 20, 0);
+  }
 }
