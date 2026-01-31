@@ -620,11 +620,14 @@ const App: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="h-48 mb-6 flex items-center justify-center relative overflow-hidden rounded-2xl bg-black/40">
+                      <div className="h-48 mb-6 flex items-center justify-center relative overflow-hidden rounded-2xl bg-slate-950">
+                        {/* Backlit Glow Effect */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#39ff14]/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
+
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="h-full object-contain group-hover:scale-110 transition-transform duration-700 p-4"
+                          className="h-full object-contain group-hover:scale-110 transition-transform duration-700 p-4 relative z-10"
                         />
                       </div>
 
