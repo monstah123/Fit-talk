@@ -362,10 +362,20 @@ const App: React.FC = () => {
     }
   };
 
-  const confirmBooking = async () => {
+  const confirmBooking = () => {
     if (!pendingAppointment) return;
     const { fc, details } = pendingAppointment;
 
+    // 1. DEPLOY CALENDAR TAB IMMEDIATELY (Prevents popup blockers)
+    const description = `Athlete: ${details.clientName}\nSync Source: MONSTAH FITTALK PRO\nTarget: muscle40@gmail.com\n\n60 session time\n\nTraining Type: ${details.type}\n\nINTENSE IS HOW WE TRAIN.`;
+    const gcalDetails = encodeURIComponent(description);
+    const startIso = new Date(details.startTime).toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const endIso = new Date(new Date(details.startTime).getTime() + 60 * 60000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const gcal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=MONSTAH:+${details.type}+Session&dates=${startIso}/${endIso}&details=${gcalDetails}&location=Iron+%26+Soul+Gym&add=muscle40@gmail.com`;
+
+    window.open(gcal, '_blank');
+
+    // 2. PROCESS LOCAL STATE
     setAppointments(prev => [...prev, details].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
 
     if (sessionRef.current) {
@@ -374,7 +384,7 @@ const App: React.FC = () => {
       });
     }
 
-    // Send email notification to MONSTAH PRO
+    // 3. BACKGROUND NOTIFICATIONS
     sendBookingNotification(details).then(result => {
       if (result.success) {
         console.log('✅ MONSTAH PRO notified via email');
@@ -385,14 +395,6 @@ const App: React.FC = () => {
 
     new Audio(CONFIRM_CHIME).play().catch(() => { });
     setTimeout(() => setRecommendedProductId(null), 30000);
-
-    const description = `Athlete: ${details.clientName}\nSync Source: MONSTAH FITTALK PRO\nTarget: muscle40@gmail.com\n\n60 session time\n\nTraining Type: ${details.type}\n\nINTENSE IS HOW WE TRAIN.`;
-    const gcalDetails = encodeURIComponent(description);
-    const startIso = new Date(details.startTime).toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const endIso = new Date(new Date(details.startTime).getTime() + 60 * 60000).toISOString().replace(/-|:|\.\d\d\d/g, "");
-    const gcal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=MONSTAH:+${details.type}+Session&dates=${startIso}/${endIso}&details=${gcalDetails}&location=Iron+%26+Soul+Gym&add=muscle40@gmail.com`;
-
-    window.open(gcal, '_blank');
 
     // Memory: Save athlete name for recognition
     localStorage.setItem('monstah_athlete_name', details.clientName);
