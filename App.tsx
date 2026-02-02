@@ -384,7 +384,7 @@ const App: React.FC = () => {
     });
 
     new Audio(CONFIRM_CHIME).play().catch(() => { });
-    setTimeout(() => setRecommendedProductId(null), 10000);
+    setTimeout(() => setRecommendedProductId(null), 30000);
 
     const description = `Athlete: ${details.clientName}\nSync Source: MONSTAH FITTALK PRO\nTarget: muscle40@gmail.com\n\n60 session time\n\nTraining Type: ${details.type}\n\nINTENSE IS HOW WE TRAIN.`;
     const gcalDetails = encodeURIComponent(description);
