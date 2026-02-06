@@ -444,6 +444,19 @@ const App: React.FC = () => {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @-webkit-keyframes slideUp { from { -webkit-transform: translateY(20px); opacity: 0; } to { -webkit-transform: translateY(0); opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { -webkit-transform: translateY(0); opacity: 1; } }
+        @keyframes logoPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.5), 0 0 40px rgba(57, 255, 20, 0.3), 0 0 60px rgba(57, 255, 20, 0.1);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(57, 255, 20, 0.8), 0 0 60px rgba(57, 255, 20, 0.5), 0 0 90px rgba(57, 255, 20, 0.2);
+          }
+        }
+        .logo-animated {
+          animation: logoPulse 2s ease-in-out infinite;
+        }
         .neon-text { text-shadow: 0 0 10px #39ff14, 0 0 20px #39ff14; }
         .neon-border { border-color: #39ff14; box-shadow: 0 0 15px rgba(57, 255, 20, 0.3); }
         .bar { width: 4px; background: #39ff14; border-radius: 2px; }
@@ -459,7 +472,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-6xl px-4 sm:px-6">
         <header className="flex flex-col sm:flex-row justify-between items-center py-6 sm:py-8 border-b border-slate-900 mb-8 sm:mb-12 gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#39ff14] text-black rounded-lg flex items-center justify-center font-black text-xl sm:text-2xl shadow-[0_0_20px_rgba(57,255,20,0.5)]">M</div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#39ff14] text-black rounded-lg flex items-center justify-center font-black text-xl sm:text-2xl shadow-[0_0_20px_rgba(57,255,20,0.5)] logo-animated">M</div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black tracking-tighter italic uppercase leading-none">
                 <span className="text-[#39ff14] neon-text">MONSTAH</span> PRO
